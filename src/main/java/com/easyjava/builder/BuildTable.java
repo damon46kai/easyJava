@@ -3,6 +3,7 @@ package com.easyjava.builder;
 import com.easyjava.bean.Constants;
 import com.easyjava.bean.FieldInfo;
 import com.easyjava.bean.TableInfo;
+import com.easyjava.utils.JsonUtils;
 import com.easyjava.utils.PropertiesUtils;
 import com.easyjava.utils.StringUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -12,7 +13,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class BuildTable {
 
@@ -22,6 +25,8 @@ public class BuildTable {
     private static String SQL_SHOW_TABLE_STATUS = "show table status";
 
     private static String SQL_SHOW_TABLE_FIELDS = "show full fields from %s";
+
+    private  static String SQL_SHOW_TABLE_INDEX = "show index from %s";
 
     static {
         String driverName = PropertiesUtils.getString("db.driver.name");
@@ -36,7 +41,7 @@ public class BuildTable {
         }
 
     }
-        public static void getTables(){
+        public static List<TableInfo> getTables(){
             PreparedStatement ps = null;
             ResultSet tableResult = null;
 
@@ -66,11 +71,16 @@ public class BuildTable {
 
                     tableInfo.setBeanParamName(beanName + Constants.SUFFIX_BEAN_PARAM);
 
-                    List<FieldInfo> fieldInfoList = readFieldInfo(tableInfo);
 
-                    logger.info(fieldInfoList.toString());
+
+                    //logger.info("表:{}", JsonUtils.convertObj2Json(tableInfo));
+                    //logger.info("字段:{}",JsonUtils.convertObj2Json(fieldInfoList));
+                    //logger.info(fieldInfoList.toString());
                 //    logger.info("table:{},comment:{},JavaBean:{},JavaParamBean:{}",tableInfo.getTableName(),tableInfo.getComment(),tableInfo.getBeanName(),tableInfo.getBeanParamName());
                 readFieldInfo(tableInfo);
+                getKeyIndexInfo(tableInfo);
+              //  logger.info("tableInfo:{}", JsonUtils.convertObj2Json(tableInfo));
+                tableInfoList.add(tableInfo);
                 }
             }catch (Exception e){
                 logger.error("读取表失败");
@@ -97,11 +107,11 @@ public class BuildTable {
                     }
                 }
             }
-
+            return tableInfoList;
         }
 
 
-        private static List<FieldInfo> readFieldInfo(TableInfo tableInfo) {
+        private static void readFieldInfo(TableInfo tableInfo) {
             PreparedStatement ps = null;
             ResultSet fieldResult = null;
 
@@ -121,6 +131,7 @@ public class BuildTable {
                     String propertyName  = processField(field, false);
                     FieldInfo fieldInfo = new FieldInfo();
                     fieldInfoList.add(fieldInfo);
+                    tableInfo.setFieldList(fieldInfoList);
 
                     fieldInfo.setFieldName(field);
                     fieldInfo.setComment(comment);
@@ -130,19 +141,27 @@ public class BuildTable {
                     fieldInfo.setJavaType(processJavaType(type));
 
                     if(ArrayUtils.contains(Constants.SQL_DATE_TIME_TYPES, type)){
-                        tableInfo.setHaveBigDecimal(true);
+                        tableInfo.setHaveDateTime(true);
+                    }else {
+                        tableInfo.setHaveDateTime(false);
                     }
                     if(ArrayUtils.contains(Constants.SQL_DATE_TYPES, type)){
                         tableInfo.setHaveDate(true);
+                    }else {
+                        tableInfo.setHaveDate(false);
                     }
                     if(ArrayUtils.contains(Constants.SQL_DECIMAL_TYPE, type)){
                         tableInfo.setHaveBigDecimal(true);
+                    }else {
+                        tableInfo.setHaveBigDecimal(false);
                     }
+
+
 
                     //logger.info("javaType:{}", fieldInfo.getJavaType());
                    // logger.info("field:{},propertyName:{},type:{},extra:{},comment:{}",field, type, extra, comment);
-
                  }
+
             }catch (Exception e){
                 logger.error("读取表失败");
             }finally {
@@ -161,8 +180,59 @@ public class BuildTable {
                     }
                 }
             }
-                return fieldInfoList;
+           //     return fieldInfoList;
         }
+
+    private static List<FieldInfo> getKeyIndexInfo(TableInfo tableInfo) {
+        PreparedStatement ps = null;
+        ResultSet fieldResult = null;
+
+        List<FieldInfo> fieldInfoList = new ArrayList();
+        try{
+
+            Map<String, FieldInfo> tempMap = new HashMap();
+            for(FieldInfo fieldInfo:tableInfo.getFieldList()){
+               tempMap.put(fieldInfo.getFieldName(), fieldInfo);
+            }
+
+
+            ps = conn.prepareStatement(String.format(SQL_SHOW_TABLE_INDEX, tableInfo.getTableName()));
+            fieldResult = ps.executeQuery();
+            while(fieldResult.next()){
+                String keyName = fieldResult.getString("key_name");
+                Integer nonUnique = fieldResult.getInt("non_unique");
+                String columnName = fieldResult.getString("column_name");
+                if(nonUnique ==1){
+                   continue;
+                }
+                List<FieldInfo> keyFieldList = tableInfo.getKeyIndexMap().get(keyName);
+                if(null == keyFieldList){
+                    keyFieldList = new ArrayList<FieldInfo>();
+                    tableInfo.getKeyIndexMap().put(keyName, keyFieldList);
+                }
+                keyFieldList.add(tempMap.get(columnName));
+            }
+
+        }catch (Exception e){
+            logger.error("读取索引失败");
+        }finally {
+            if(fieldResult!=null){
+                try {
+                    fieldResult.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if(ps!=null){
+                try {
+                    ps.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return fieldInfoList;
+    }
 
         private static String processField(String field, Boolean upperCaseFirstLetter){
             StringBuffer sb = new StringBuffer();
