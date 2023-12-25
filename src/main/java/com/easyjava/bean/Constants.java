@@ -4,6 +4,7 @@ import com.easyjava.utils.PropertiesUtils;
 
 public class Constants {
 
+    public static String AUTHOR_COMMENT ;
     public static Boolean IGNORE_TABLE_PREFIX;
 
     public static String SUFFIX_BEAN_PARAM;
@@ -20,6 +21,8 @@ public class Constants {
     public static String PACKAGE_PO;
 
     static {
+
+        AUTHOR_COMMENT = PropertiesUtils.getString("author.comment");
         IGNORE_TABLE_PREFIX = Boolean.valueOf(PropertiesUtils.getString("ignore.table.prefix"));
         SUFFIX_BEAN_PARAM = PropertiesUtils.getString("suffix.bean.param");
         PATH_BASE = PropertiesUtils.getString("path.base");

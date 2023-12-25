@@ -6,6 +6,7 @@ import com.easyjava.bean.TableInfo;
 import com.easyjava.utils.JsonUtils;
 import com.easyjava.utils.PropertiesUtils;
 import com.easyjava.utils.StringUtils;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,6 +120,11 @@ public class BuildTable {
             try{
                 ps = conn.prepareStatement(String.format(SQL_SHOW_TABLE_FIELDS, tableInfo.getTableName()));
                 fieldResult = ps.executeQuery();
+
+                Boolean haveDateTime = false;
+                Boolean haveDate = false;
+                Boolean haveBigDecimal = false;
+
                 while(fieldResult.next()){
                     String field = fieldResult.getString("field");
                     String type = fieldResult.getString("type");
@@ -141,23 +147,19 @@ public class BuildTable {
                     fieldInfo.setJavaType(processJavaType(type));
 
                     if(ArrayUtils.contains(Constants.SQL_DATE_TIME_TYPES, type)){
-                        tableInfo.setHaveDateTime(true);
-                    }else {
-                        tableInfo.setHaveDateTime(false);
+                        haveDateTime = true;
                     }
-                    if(ArrayUtils.contains(Constants.SQL_DATE_TYPES, type)){
-                        tableInfo.setHaveDate(true);
-                    }else {
-                        tableInfo.setHaveDate(false);
-                    }
-                    if(ArrayUtils.contains(Constants.SQL_DECIMAL_TYPE, type)){
-                        tableInfo.setHaveBigDecimal(true);
-                    }else {
-                        tableInfo.setHaveBigDecimal(false);
+                    if(ArrayUtils.contains(Constants.SQL_DECIMAL_TYPE, type)) {
+                        haveDate = true;
+                    }if(ArrayUtils.contains(Constants.SQL_DECIMAL_TYPE, type)){
+                        haveBigDecimal = true;
                     }
 
 
-
+                    tableInfo.setHaveDate(haveDate);
+                    tableInfo.setHaveDateTime(haveDateTime);
+                    tableInfo.setHaveBigDecimal(haveBigDecimal);
+                    tableInfo.setFieldList(fieldInfoList);
                     //logger.info("javaType:{}", fieldInfo.getJavaType());
                    // logger.info("field:{},propertyName:{},type:{},extra:{},comment:{}",field, type, extra, comment);
                  }
