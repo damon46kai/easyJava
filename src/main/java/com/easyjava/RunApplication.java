@@ -14,5 +14,7 @@ public class RunApplication {
        for(TableInfo tableInfo: tableInfoList){
            BuildPo.execute(tableInfo);
        }
+
+       //System.out.println(tableInfoList.toString());
     }
 }
