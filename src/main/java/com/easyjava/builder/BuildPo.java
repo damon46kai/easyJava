@@ -39,17 +39,23 @@ public class BuildPo {
             bw.write("package " + Constants.PACKAGE_PO + ";");
             bw.newLine();
             bw.newLine();
-            bw.write("import java.io.Serializable;");
-            bw.newLine();
+
 
             if (tableInfo.getHaveDate() || tableInfo.getHaveDateTime()) {
-                bw.write("import java.util.Date; ");
-                bw.newLine();
+
                 bw.write(Constants.BEAN_DATE_FORMAT_CLASS + ";");
                 bw.newLine();
                 bw.write(Constants.BEAN_DATE_UNFORMAT_CLASS + ";");
                 bw.newLine();
+
+
+                bw.write("import " + Constants.PACKAGE_ENUMS + ".DateTimePatternEnum; ");
+                bw.newLine();
+                bw.write("import " + Constants.PACKAGE_UTILS + ".DateUtils; ");
+                bw.newLine();
+
             }
+
 
 
             //ignore property
@@ -66,11 +72,19 @@ public class BuildPo {
                 bw.newLine();
             }
 
+            bw.newLine();
+            bw.write("import java.io.Serializable;");
+            bw.newLine();
 
             if (tableInfo.getHaveBigDecimal()) {
                 bw.write("import java.math.BigDecimal;");
+                bw.newLine();
             }
 
+            if (tableInfo.getHaveDate() || tableInfo.getHaveDateTime()) {
+                bw.write("import java.util.Date; ");
+                bw.newLine();
+            }
 
             bw.newLine();
             bw.newLine();
@@ -135,7 +149,16 @@ public class BuildPo {
             Integer index = 0;
             for(FieldInfo field:tableInfo.getFieldList()){
                 index++;
-                toString.append( field.getComment() + ":\"+ (" + field.getPropertyName() + " == null ? \"空\" :  " + field.getPropertyName() + ")");
+
+                String properName = field.getPropertyName();
+                if(ArrayUtils.contains(Constants.SQL_DATE_TIME_TYPES, field.getSqlType())) {
+                    properName = "DateUtils.format(" + properName + ", DateTimePatternEnum.YYYY_MM_DD_HH_MM_SS.getPattern())";
+                }else if(ArrayUtils.contains(Constants.SQL_DATE_TYPES, field.getSqlType())){
+                    properName = "DateUtils.format(" + properName + ", DateTimePatternEnum.YYYY_MM_DD.getPattern())";
+
+                }
+
+                toString.append( field.getComment() + ":\"+ (" + field.getPropertyName() + " == null ? \"空\" :  " + properName + ")");
                 if(index< tableInfo.getFieldList().size()){
                     toString.append("+").append("\",");
                 }
